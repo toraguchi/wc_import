@@ -1,9 +1,10 @@
 import csv
+import json
 import os
-import re
 import time
 from playwright.sync_api import sync_playwright
 import gspread
+from google.oauth2.service_account import Credentials
 
 LOGIN_URL = "https://hikkoshi-kanri.zba.jp/"
 CSV_URL = "https://hikkoshi-kanri.zba.jp/checkbox/company/users/searched/50/1"
@@ -54,7 +55,7 @@ def download_csv(account_id, account_pass, filename):
         page.screenshot(path=f"debug_csv_page_{account_id}.png")
         print(f"📷 csv_page saved     | URL: {page.url}")
 
-        # ★ button:text('CSV') が正解とわかったので先頭に移動
+        # ダウンロード処理
         download_selectors = [
             "button:text('CSV')",
             "button:text('出力')",
@@ -88,12 +89,10 @@ def merge_csv(files, output_file):
     merged = []
     header = None
     for f in files:
-        # エンコーディングを自動判定（Shift-JIS優先）
         for encoding in ["shift_jis", "cp932", "utf-8-sig", "utf-8"]:
             try:
                 with open(f, "r", encoding=encoding) as csvfile:
-                    reader = csv.reader(csvfile)
-                    rows = list(reader)
+                    rows = list(csv.reader(csvfile))
                 print(f"  {f}: encoding={encoding}, {len(rows)}行")
                 break
             except (UnicodeDecodeError, Exception):
@@ -107,19 +106,29 @@ def merge_csv(files, output_file):
         merged.extend(rows[1:])
 
     with open(output_file, "w", encoding="utf-8", newline="") as out:
-        writer = csv.writer(out)
-        writer.writerows(merged)
+        csv.writer(out).writerows(merged)
     print(f"✅ merged.csv 作成完了: {len(merged)}行")
 
 
 def upload_to_gss(csv_file, sheet_id):
-    gc = gspread.service_account(filename="service_account.json")
+    # ★ GCP_SA_KEY_JSON 環境変数からサービスアカウント情報を直接読み込む
+    sa_json = os.environ.get("GCP_SERVICE_ACCOUNT")
+    if not sa_json:
+        raise Exception("❌ 環境変数 GCP_SERVICE_ACCOUNT が設定されていません")
+
+    sa_info = json.loads(sa_json)
+    scopes = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/drive",
+    ]
+    creds = Credentials.from_service_account_info(sa_info, scopes=scopes)
+    gc = gspread.authorize(creds)
+
     sh = gc.open_by_key(sheet_id)
     ws = sh.worksheet("row")
     ws.clear()
     with open(csv_file, "r", encoding="utf-8") as f:
-        reader = csv.reader(f)
-        rows = list(reader)
+        rows = list(csv.reader(f))
     ws.append_rows(rows)
     print(f"✅ GSSへ反映完了: {len(rows)}行")
 
