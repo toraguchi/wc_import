@@ -1,31 +1,42 @@
-name: WC Auto Download
+name: Work-Hours-Automation
 
 on:
   schedule:
-    - cron: "* * * * *"   # 毎分実行 ← これが最大
+    # -------------------------------------------------------------------------
+    # 日本時間（JST）の 09:00 〜 18:59 の間、10分おきに実行する設定
+    # GitHub ActionsはUTC（世界標準時）基準のため、JSTから9時間を引いています。
+    # JST 09:00-18:59  =>  UTC 00:00-09:59
+    # -------------------------------------------------------------------------
+    - cron: '*/10 0-9 * * *'
+
+  # 手動でいつでも実行できるようにするボタン（動作確認に便利です）
   workflow_dispatch:
 
 jobs:
-  run:
+  automation-job:
     runs-on: ubuntu-latest
+    
+    # 万が一、処理がスタックした場合に無料枠を使い切らないよう10分で強制終了させる
+    timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v3
+      - name: リポジトリのコードを取得
+        uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: Python環境のセットアップ
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: '3.10'
+          # キャッシュを利用して実行時間を短縮（無料枠の節約）
+          cache: 'pip'
 
-      - name: Install dependencies
+      - name: 依存ライブラリのインストール
         run: |
-          pip install -r requirements.txt
-          playwright install chromium
+          python -m pip install --upgrade pip
+          pip install google-auth google-api-python-client
 
-      - name: Write GCP credentials
-        run: |
-          echo "${{ secrets.GCP_SERVICE_ACCOUNT }}" > service_account.json
-
-      - name: Run script
-        run: |
-          python scrape.py
+      - name: 自動化スクリプトの実行
+        env:
+          # GitHub Secretsに登録したJSONキーを環境変数として読み込む
+          GCP_SA_KEY_JSON: ${{ secrets.GCP_SA_KEY }}
+        run: python main.py
