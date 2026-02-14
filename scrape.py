@@ -83,3 +83,9 @@ if __name__ == "__main__":
     # GSSへ反映（ID固定）
     SHEET_ID = "1zfnTMt8RKAojSBZ51M3M2s73vTneFP8eyyVEYRtxlwM"
     upload_to_gss("merged.csv", SHEET_ID)
+
+page.goto("https://wc.r-jin.jp/login")
+page.wait_for_load_state("networkidle")
+page.screenshot(path="debug_login.png")
+print("📷 debug_login.png saved")
+
