@@ -1,15 +1,12 @@
 name: Work-Hours-Automation
-
 on:
   schedule:
     - cron: '*/10 0-9 * * *'
   workflow_dispatch:
-
 jobs:
   automation-job:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     steps:
       - name: コード取得
         uses: actions/checkout@v4
@@ -26,12 +23,15 @@ jobs:
           pip install playwright
 
       - name: Playwright の依存関係インストール
-        run: |
-          python -m playwright install --with-deps
+        run: python -m playwright install --with-deps
 
       - name: 自動化スクリプトの実行
         env:
           GCP_SA_KEY_JSON: ${{ secrets.GCP_SA_KEY }}
+          WC_ID_1: ${{ secrets.WC_ID_1 }}
+          WC_ID_2: ${{ secrets.WC_ID_2 }}
+          WC_PASS_1: ${{ secrets.WC_PASS_1 }}
+          WC_PASS_2: ${{ secrets.WC_PASS_2 }}
         run: python scrape.py
 
       - name: スクショを保存（あれば）
@@ -40,3 +40,4 @@ jobs:
         with:
           name: debug-screenshots
           path: "*.png"
+          if-no-files-found: ignore
