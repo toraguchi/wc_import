@@ -27,7 +27,7 @@ jobs:
 
       - name: 自動化スクリプトの実行
         env:
-          GCP_SA_KEY_JSON: ${{ secrets.GCP_SA_KEY }}
+          GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
           WC_ID_1: ${{ secrets.WC_ID_1 }}
           WC_ID_2: ${{ secrets.WC_ID_2 }}
           WC_PASS_1: ${{ secrets.WC_PASS_1 }}
