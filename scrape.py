@@ -36,7 +36,7 @@ def download_csv(account_id, account_pass, filename):
         except Exception:
             page.press("input[autocomplete='current-password']", "Enter")
 
-        # ログイン成功 = URLがログインページから変わるまで待つ
+        # ログイン成功 = URLが変わるまで待つ
         try:
             page.wait_for_url(
                 lambda url: url.rstrip("/") != LOGIN_URL.rstrip("/"),
@@ -49,49 +49,28 @@ def download_csv(account_id, account_pass, filename):
         page.screenshot(path=f"debug_after_login_{account_id}.png")
         print(f"📷 after_login saved  | URL: {page.url}")
 
-        # ログイン失敗チェック
-        if page.url.rstrip("/") == LOGIN_URL.rstrip("/"):
-            html = page.content()
-            errors = re.findall(r'<[^>]*class="[^"]*error[^"]*"[^>]*>([^<]+)<', html, re.IGNORECASE)
-            print(f"⚠️ ログイン失敗の可能性。エラー要素: {errors}")
-
         # CSVダウンロード画面へ移動
         page.goto(CSV_URL, wait_until="networkidle")
         page.screenshot(path=f"debug_csv_page_{account_id}.png")
         print(f"📷 csv_page saved     | URL: {page.url}")
 
-        # ページ内のリンクを全列挙してCSVエクスポートリンクを特定
-        links = page.query_selector_all("a")
-        print(f"=== ページ内のリンク ({len(links)}個) ===")
-        for link in links:
-            href = link.get_attribute("href") or ""
-            text = link.inner_text().strip()
-            if any(kw in href.lower() or kw in text.lower()
-                   for kw in ["export", "csv", "download", "出力", "ダウンロード"]):
-                print(f"  ★ 候補: text='{text}', href='{href}'")
-            else:
-                print(f"    text='{text}', href='{href}'")
-
-        # ダウンロード処理（候補セレクターを優先度順に試みる）
+        # ★ button:text('CSV') が正解とわかったので先頭に移動
         download_selectors = [
-            "a[href*='export']",
-            "a[href*='csv']",
-            "a[href*='download']",
-            "a:text('CSV')",
-            "a:text('エクスポート')",
-            "a:text('出力')",
-            "a:text('ダウンロード')",
             "button:text('CSV')",
             "button:text('出力')",
+            "button:text('ダウンロード')",
+            "a[href*='export']",
+            "a[href*='csv']",
+            "a:text('CSV')",
         ]
 
         downloaded = False
         for selector in download_selectors:
             try:
-                with page.expect_download(timeout=10000) as dl_info:
+                with page.expect_download(timeout=15000) as dl_info:
                     page.click(selector, timeout=5000)
-                download = dl_info.value
-                download.save_as(filename)
+                dl = dl_info.value
+                dl.save_as(filename)
                 print(f"✅ {filename} downloaded (selector: {selector})")
                 downloaded = True
                 break
@@ -105,19 +84,32 @@ def download_csv(account_id, account_pass, filename):
 
 
 def merge_csv(files, output_file):
+    """Shift-JIS / UTF-8 どちらでも読み込めるよう対応"""
     merged = []
     header = None
     for f in files:
-        with open(f, "r", encoding="utf-8") as csvfile:
-            reader = csv.reader(csvfile)
-            rows = list(reader)
-            if header is None:
-                header = rows[0]
-                merged.append(header)
-            merged.extend(rows[1:])
+        # エンコーディングを自動判定（Shift-JIS優先）
+        for encoding in ["shift_jis", "cp932", "utf-8-sig", "utf-8"]:
+            try:
+                with open(f, "r", encoding=encoding) as csvfile:
+                    reader = csv.reader(csvfile)
+                    rows = list(reader)
+                print(f"  {f}: encoding={encoding}, {len(rows)}行")
+                break
+            except (UnicodeDecodeError, Exception):
+                continue
+        else:
+            raise Exception(f"❌ {f} のエンコーディングを判定できませんでした")
+
+        if header is None:
+            header = rows[0]
+            merged.append(header)
+        merged.extend(rows[1:])
+
     with open(output_file, "w", encoding="utf-8", newline="") as out:
         writer = csv.writer(out)
         writer.writerows(merged)
+    print(f"✅ merged.csv 作成完了: {len(merged)}行")
 
 
 def upload_to_gss(csv_file, sheet_id):
@@ -125,9 +117,11 @@ def upload_to_gss(csv_file, sheet_id):
     sh = gc.open_by_key(sheet_id)
     ws = sh.worksheet("row")
     ws.clear()
-    with open(csv_file, "r") as f:
+    with open(csv_file, "r", encoding="utf-8") as f:
         reader = csv.reader(f)
-        ws.append_rows(list(reader))
+        rows = list(reader)
+    ws.append_rows(rows)
+    print(f"✅ GSSへ反映完了: {len(rows)}行")
 
 
 if __name__ == "__main__":
