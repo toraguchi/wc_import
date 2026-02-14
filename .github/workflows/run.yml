@@ -1,0 +1,31 @@
+name: WC Auto Download
+
+on:
+  schedule:
+    - cron: "* * * * *"   # 毎分実行 ← これが最大
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          playwright install chromium
+
+      - name: Write GCP credentials
+        run: |
+          echo "${{ secrets.GCP_SERVICE_ACCOUNT }}" > service_account.json
+
+      - name: Run script
+        run: |
+          python scrape.py
