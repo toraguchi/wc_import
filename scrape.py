@@ -21,23 +21,19 @@ def download_csv(account_id, account_pass, filename):
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
 
-        # ログインページへ移動
         page.goto(LOGIN_URL, wait_until="networkidle")
         page.screenshot(path=f"debug_before_login_{account_id}.png")
         print(f"📷 before_login saved | URL: {page.url}")
 
-        # Vue.jsフォームに入力
         page.wait_for_selector("input[autocomplete='username']", timeout=15000)
         page.fill("input[autocomplete='username']", account_id)
         page.fill("input[autocomplete='current-password']", account_pass)
 
-        # ログインボタンをクリック（submitボタンがなければEnter）
         try:
             page.click("button[type='submit']", timeout=3000)
         except Exception:
             page.press("input[autocomplete='current-password']", "Enter")
 
-        # ログイン成功 = URLが変わるまで待つ
         try:
             page.wait_for_url(
                 lambda url: url.rstrip("/") != LOGIN_URL.rstrip("/"),
@@ -50,12 +46,10 @@ def download_csv(account_id, account_pass, filename):
         page.screenshot(path=f"debug_after_login_{account_id}.png")
         print(f"📷 after_login saved  | URL: {page.url}")
 
-        # CSVダウンロード画面へ移動
         page.goto(CSV_URL, wait_until="networkidle")
         page.screenshot(path=f"debug_csv_page_{account_id}.png")
         print(f"📷 csv_page saved     | URL: {page.url}")
 
-        # ダウンロード処理
         download_selectors = [
             "button:text('CSV')",
             "button:text('出力')",
@@ -85,7 +79,6 @@ def download_csv(account_id, account_pass, filename):
 
 
 def merge_csv(files, output_file):
-    """Shift-JIS / UTF-8 どちらでも読み込めるよう対応"""
     merged = []
     header = None
     for f in files:
@@ -111,10 +104,10 @@ def merge_csv(files, output_file):
 
 
 def upload_to_gss(csv_file, sheet_id):
-    # ★ GCP_SA_KEY_JSON 環境変数からサービスアカウント情報を直接読み込む
-    sa_json = os.environ.get("GCP_SA_KEY_JSON")
+    # ★ Secret名 GCP_SERVICE_ACCOUNT から読み込む
+    sa_json = os.environ.get("GCP_SERVICE_ACCOUNT")
     if not sa_json:
-        raise Exception("❌ 環境変数 GCP_SA_KEY_JSON が設定されていません")
+        raise Exception("❌ 環境変数 GCP_SERVICE_ACCOUNT が設定されていません")
 
     sa_info = json.loads(sa_json)
     scopes = [
