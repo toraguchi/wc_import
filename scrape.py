@@ -112,9 +112,9 @@ def merge_csv(files, output_file):
 
 def upload_to_gss(csv_file, sheet_id):
     # ★ GCP_SA_KEY_JSON 環境変数からサービスアカウント情報を直接読み込む
-    sa_json = os.environ.get("GCP_SERVICE_ACCOUNT")
+    sa_json = os.environ.get("GCP_SA_KEY_JSON")
     if not sa_json:
-        raise Exception("❌ 環境変数 GCP_SERVICE_ACCOUNT が設定されていません")
+        raise Exception("❌ 環境変数 GCP_SA_KEY_JSON が設定されていません")
 
     sa_info = json.loads(sa_json)
     scopes = [
