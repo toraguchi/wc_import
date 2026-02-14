@@ -2,7 +2,6 @@ import csv
 import time
 from playwright.sync_api import sync_playwright
 import gspread
-import os
 
 LOGIN_URL = "https://hikkoshi-kanri.zba.jp/"
 CSV_URL = "https://hikkoshi-kanri.zba.jp/checkbox/company/users/searched/50/1"
@@ -24,11 +23,11 @@ def download_csv(account_id, account_pass, filename):
         page.click("button[type='submit']")
         page.wait_for_load_state("networkidle")
 
-        # CSVダウンロード画面へ
+        # CSVダウンロード画面
         page.goto(CSV_URL)
         page.wait_for_load_state("networkidle")
 
-        # ダウンロード
+        # ダウンロード処理
         with page.expect_download() as dl_info:
             page.click("a[href*='export']")
         download = dl_info.value
@@ -60,12 +59,13 @@ def merge_csv(files, output_file):
 def upload_to_gss(csv_file, sheet_id):
     gc = gspread.service_account(filename="service_account.json")
     sh = gc.open_by_key(sheet_id)
-    ws = sh.sheet1
 
-    # シート全削除
+    # ← 指定されたシート名に書き込み
+    ws = sh.worksheet("row")
+
+    # シート削除 → 新規反映
     ws.clear()
 
-    # CSV全文をアップ
     with open(csv_file, "r") as f:
         reader = csv.reader(f)
         ws.append_rows(list(reader))
@@ -80,6 +80,6 @@ if __name__ == "__main__":
     # 結合
     merge_csv(["a.csv", "b.csv"], "merged.csv")
 
-    # GSSへ
+    # GSSへ反映（ID固定）
     SHEET_ID = "1zfnTMt8RKAojSBZ51M3M2s73vTneFP8eyyVEYRtxlwM"
     upload_to_gss("merged.csv", SHEET_ID)
