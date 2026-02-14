@@ -34,3 +34,10 @@ jobs:
         env:
           GCP_SA_KEY_JSON: ${{ secrets.GCP_SA_KEY }}
         run: python scrape.py
+
+      - name: スクショを保存（あれば）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-screenshots
+          path: "*.png"
